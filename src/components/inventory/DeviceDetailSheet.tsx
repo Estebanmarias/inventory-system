@@ -71,7 +71,7 @@ export default function DeviceDetailSheet({ device, role, onClose }: Props) {
                   {device.products?.brands?.name} {device.products?.model_name}
                 </h2>
                 <p className="text-[#888888] text-sm">
-                  {device.products?.categories?.name} · {stockTypeLabel[device.stock_type]}
+                  {device.products?.brands?.categories?.name} · {stockTypeLabel[device.stock_type]}
                 </p>
               </div>
               <button onClick={onClose} className="text-[#555555] hover:text-white p-2">
