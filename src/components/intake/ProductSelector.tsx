@@ -79,7 +79,7 @@ export default function ProductSelector({ onSelect }: Props) {
     }).select(`id, model_name, storage_capacity, brands ( id, name, categories ( id, name ) )`).single()
 
     if (!error && data) {
-      onSelect(data as Product)
+      onSelect(data as unknown as Product)
     }
     setSaving(false)
   }
