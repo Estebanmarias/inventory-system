@@ -54,58 +54,47 @@ export default function UKUsedIntake() {
     setStreaming(false)
   }
 
-  async function captureAndOCR() {
+async function captureAndOCR() {
   if (!videoRef.current || !canvasRef.current) return
   setProcessing(true)
+  setError('')
 
   const canvas = canvasRef.current
   const video = videoRef.current
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
+  canvas.getContext('2d')?.drawImage(video, 0, 0)
 
-  const ctx = canvas.getContext('2d')!
-  ctx.drawImage(video, 0, 0)
-
-  // Crop to center region
-  const cropX = canvas.width * 0.1
-  const cropY = canvas.height * 0.2
-  const cropW = canvas.width * 0.8
-  const cropH = canvas.height * 0.6
-  const cropped = ctx.getImageData(cropX, cropY, cropW, cropH)
-  canvas.width = cropW
-  canvas.height = cropH
-  ctx.putImageData(cropped, 0, 0)
-
-  // Grayscale + contrast boost
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const data = imageData.data
-  for (let i = 0; i < data.length; i += 4) {
-    const avg = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
-    const factor = 1.8
-    const val = Math.min(255, Math.max(0, factor * (avg - 128) + 128))
-    data[i] = val
-    data[i + 1] = val
-    data[i + 2] = val
-  }
-  ctx.putImageData(imageData, 0, 0)
+  // Convert to base64 — remove the data:image/...;base64, prefix
+  const base64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1]
 
   try {
-    const Tesseract = (await import('tesseract.js')).default
-    const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
-      logger: () => {}
+    const res = await fetch('/api/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: base64 })
     })
+
+    const { text, error: ocrError } = await res.json()
+
+    if (ocrError) {
+      setError(`OCR error: ${ocrError}`)
+      setProcessing(false)
+      return
+    }
 
     setDebugText(text)
 
     const imeiMatch = text.match(/\b(\d{15})\b/)
     const serialMatch = text.match(/(?:serial|s\/n|sn)[:\s#]*([A-Z0-9]{8,20})/i)
     const modelPatterns = [
-      /iPhone\s[\w\s]+(?:Pro(?:\s*Max)?|Plus|mini)?/i,
-      /Samsung\s+Galaxy\s+[\w\s]+/i,
-      /iPad\s+[\w\s]+/i,
-      /MacBook\s+[\w\s]+/i,
-      /Pixel\s+\d[\w\s]*/i,
+      /iPhone\s+[\w\s]+?(?=\n|Storage|Capacity|IMEI|Serial|$)/i,
+      /Samsung\s+Galaxy\s+[\w\s]+?(?=\n|Storage|IMEI|Serial|$)/i,
+      /iPad\s+[\w\s]+?(?=\n|Storage|IMEI|Serial|$)/i,
+      /MacBook\s+[\w\s]+?(?=\n|Storage|IMEI|Serial|$)/i,
+      /Pixel\s+\d[\w\s]*?(?=\n|Storage|IMEI|Serial|$)/i,
     ]
+
     let model = ''
     for (const pattern of modelPatterns) {
       const match = text.match(pattern)
@@ -124,9 +113,10 @@ export default function UKUsedIntake() {
       serial_number: serialMatch?.[1] ?? '',
     }))
     setStep('confirm')
-  } catch {
-    setError('OCR failed. Try again with better lighting.')
+  } catch (err) {
+    setError('OCR request failed. Check your connection.')
   }
+
   setProcessing(false)
 }
 
