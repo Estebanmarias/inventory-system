@@ -55,57 +55,80 @@ export default function UKUsedIntake() {
   }
 
   async function captureAndOCR() {
-    if (!videoRef.current || !canvasRef.current) return
-    setProcessing(true)
+  if (!videoRef.current || !canvasRef.current) return
+  setProcessing(true)
 
-    const canvas = canvasRef.current
-    const video = videoRef.current
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')?.drawImage(video, 0, 0)
+  const canvas = canvasRef.current
+  const video = videoRef.current
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
 
-    try {
-      const Tesseract = (await import('tesseract.js')).default
-      const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
-        logger: () => {}
-      })
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(video, 0, 0)
 
-        setDebugText(text)
+  // Crop to center region
+  const cropX = canvas.width * 0.1
+  const cropY = canvas.height * 0.2
+  const cropW = canvas.width * 0.8
+  const cropH = canvas.height * 0.6
+  const cropped = ctx.getImageData(cropX, cropY, cropW, cropH)
+  canvas.width = cropW
+  canvas.height = cropH
+  ctx.putImageData(cropped, 0, 0)
 
-      console.log('OCR RAW TEXT:', text)
-
-      const imeiMatch = text.match(/\b(\d{15})\b/)
-      const serialMatch = text.match(/(?:serial|s\/n|sn)[:\s#]*([A-Z0-9]{8,20})/i)
-      const modelPatterns = [
-        /iPhone\s[\w\s]+(?:Pro(?:\s*Max)?|Plus|mini)?/i,
-        /Samsung\s+Galaxy\s+[\w\s]+/i,
-        /iPad\s+[\w\s]+/i,
-        /MacBook\s+[\w\s]+/i,
-        /Pixel\s+\d[\w\s]*/i,
-      ]
-      let model = ''
-      for (const pattern of modelPatterns) {
-        const match = text.match(pattern)
-        if (match) { model = match[0].trim(); break }
-      }
-
-      stopCamera()
-      setOcrResult({
-        imei: imeiMatch?.[1] ?? '',
-        serial: serialMatch?.[1] ?? '',
-        model,
-      })
-      setForm(f => ({
-        ...f,
-        imei: imeiMatch?.[1] ?? '',
-        serial_number: serialMatch?.[1] ?? '',
-      }))
-      setStep('confirm')
-    } catch {
-      setError('OCR failed. Try again with better lighting.')
-    }
-    setProcessing(false)
+  // Grayscale + contrast boost
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const data = imageData.data
+  for (let i = 0; i < data.length; i += 4) {
+    const avg = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+    const factor = 1.8
+    const val = Math.min(255, Math.max(0, factor * (avg - 128) + 128))
+    data[i] = val
+    data[i + 1] = val
+    data[i + 2] = val
   }
+  ctx.putImageData(imageData, 0, 0)
+
+  try {
+    const Tesseract = (await import('tesseract.js')).default
+    const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+      logger: () => {}
+    })
+
+    setDebugText(text)
+
+    const imeiMatch = text.match(/\b(\d{15})\b/)
+    const serialMatch = text.match(/(?:serial|s\/n|sn)[:\s#]*([A-Z0-9]{8,20})/i)
+    const modelPatterns = [
+      /iPhone\s[\w\s]+(?:Pro(?:\s*Max)?|Plus|mini)?/i,
+      /Samsung\s+Galaxy\s+[\w\s]+/i,
+      /iPad\s+[\w\s]+/i,
+      /MacBook\s+[\w\s]+/i,
+      /Pixel\s+\d[\w\s]*/i,
+    ]
+    let model = ''
+    for (const pattern of modelPatterns) {
+      const match = text.match(pattern)
+      if (match) { model = match[0].trim(); break }
+    }
+
+    stopCamera()
+    setOcrResult({
+      imei: imeiMatch?.[1] ?? '',
+      serial: serialMatch?.[1] ?? '',
+      model,
+    })
+    setForm(f => ({
+      ...f,
+      imei: imeiMatch?.[1] ?? '',
+      serial_number: serialMatch?.[1] ?? '',
+    }))
+    setStep('confirm')
+  } catch {
+    setError('OCR failed. Try again with better lighting.')
+  }
+  setProcessing(false)
+}
 
   async function handleSubmit() {
     if (!selectedProduct) { setError('Select a product first'); return }
