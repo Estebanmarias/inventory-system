@@ -174,10 +174,16 @@ export default function UKUsedIntake() {
     })
 
     if (insertError) {
-      setError(insertError.message)
-      setSaving(false)
-      return
-    }
+  if (insertError.code === '23505' && insertError.message.includes('imei')) {
+    setError('This IMEI already exists in inventory. Device may already be stocked.')
+  } else if (insertError.code === '23505' && insertError.message.includes('serial')) {
+    setError('This serial number already exists in inventory.')
+  } else {
+    setError(insertError.message)
+  }
+  setSaving(false)
+  return
+}
 
     setStep('success')
     setSaving(false)
