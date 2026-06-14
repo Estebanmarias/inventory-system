@@ -42,8 +42,8 @@ export default function ProductSelector({ onSelect }: Props) {
         `).order('model_name'),
         supabase.from('categories').select('*').order('name'),
       ])
-      setProducts((prodRes.data as Product[]) ?? [])
-      setFiltered((prodRes.data as Product[]) ?? [])
+      setProducts((prodRes.data as unknown as Product[]) ?? [])
+      setFiltered((prodRes.data as unknown as Product[]) ?? [])
       setCategories(catRes.data ?? [])
     }
     load()
