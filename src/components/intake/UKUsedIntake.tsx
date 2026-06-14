@@ -86,7 +86,9 @@ async function captureAndOCR() {
     setDebugText(text)
 
     const imeiMatch = text.match(/\b(\d{15})\b/)
-    const serialMatch = text.match(/(?:serial|s\/n|sn)[:\s#]*([A-Z0-9]{8,20})/i)
+    const serialMatch = text.match(/Serial\s*Number\s*([A-Z0-9]{8,20})/i)
+    const storageMatch = text.match(/(\d+)\s*GB/i)
+    const storage = storageMatch ? `${storageMatch[1]}GB` : ''
     const modelPatterns = [
       /iPhone\s+[\w\s]+?(?=\n|Storage|Capacity|IMEI|Serial|$)/i,
       /Samsung\s+Galaxy\s+[\w\s]+?(?=\n|Storage|IMEI|Serial|$)/i,
@@ -159,7 +161,11 @@ async function captureAndOCR() {
         {/* STEP 1: CAMERA */}
         {step === 'camera' && (
           <motion.div key="camera" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-            <p className="text-[#888888] text-sm">Point the camera at the device's <span className="text-white font-medium">About Phone</span> screen to extract details automatically.</p>
+            <p className="text-[#888888] text-sm">
+            Point the camera at the device's <span className="text-white font-medium">About Phone</span> screen. 
+            For iPhone: scroll to show IMEI or tap the model number to reveal it. 
+            Ensure <span className="text-white font-medium">Serial Number</span> and <span className="text-white font-medium">IMEI</span> are visible.
+          </p>
 
             <div className="relative bg-[#141414] border border-white/8 rounded-3xl overflow-hidden aspect-video">
               <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
