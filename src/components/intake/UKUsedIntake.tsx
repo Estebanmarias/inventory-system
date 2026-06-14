@@ -69,6 +69,8 @@ export default function UKUsedIntake() {
         logger: () => {}
       })
 
+      console.log('OCR RAW TEXT:', text)
+
       const imeiMatch = text.match(/\b(\d{15})\b/)
       const serialMatch = text.match(/(?:serial|s\/n|sn)[:\s#]*([A-Z0-9]{8,20})/i)
       const modelPatterns = [
