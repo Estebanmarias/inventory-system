@@ -18,11 +18,12 @@ interface Product {
 
 interface Props {
   onSelect: (product: Product) => void
+  initialSearch?: string
 }
 
-export default function ProductSelector({ onSelect }: Props) {
+export default function ProductSelector({ onSelect, initialSearch = '' }: Props) {
   const supabase = createClient()
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
   const [products, setProducts] = useState<Product[]>([])
   const [filtered, setFiltered] = useState<Product[]>([])
   const [showCreate, setShowCreate] = useState(false)
