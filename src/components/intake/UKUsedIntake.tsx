@@ -31,6 +31,7 @@ export default function UKUsedIntake() {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [debugText, setDebugText] = useState('')
 
   async function startCamera() {
     try {
@@ -68,6 +69,8 @@ export default function UKUsedIntake() {
       const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
         logger: () => {}
       })
+
+        setDebugText(text)
 
       console.log('OCR RAW TEXT:', text)
 
@@ -219,6 +222,12 @@ export default function UKUsedIntake() {
               className="w-full bg-blue-500 disabled:opacity-40 text-white font-semibold rounded-xl py-3 text-sm">
               Continue to Details
             </motion.button>
+
+            {debugText && (
+              <div className="bg-[#1C1C1C] border border-white/8 rounded-2xl p-3 max-h-48 overflow-y-auto">
+                <p className="text-[#888888] text-xs font-mono whitespace-pre-wrap">{debugText}</p>
+              </div>
+            )}
 
             <button onClick={() => { setStep('camera'); startCamera() }} className="w-full flex items-center justify-center gap-2 text-[#555555] text-sm py-2">
               <RotateCcw size={14} /> Retake
