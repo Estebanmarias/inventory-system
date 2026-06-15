@@ -4,13 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { LayoutDashboard, Package, ShoppingCart, Users, Bell, Settings } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingCart, Users, Bell, Settings, UserCheck, Receipt } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/inventory', icon: Package, label: 'Inventory' },
   { href: '/checkout', icon: ShoppingCart, label: 'Sell' },
   { href: '/resellers', icon: Users, label: 'Resellers' },
+  { href: '/customers', icon: UserCheck, label: 'Customers' },
+  { href: '/invoices', icon: Receipt, label: 'Invoices' },
   { href: '/alerts', icon: Bell, label: 'Alerts' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ]

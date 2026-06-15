@@ -9,6 +9,45 @@ import { useRouter } from 'next/navigation'
 
 const COLORS = ['Black', 'White', 'Gold', 'Silver', 'Blue', 'Purple', 'Red', 'Green', 'Pink', 'Yellow', 'Starlight', 'Midnight', 'Space Grey', 'Natural Titanium', 'Rose Gold']
 
+const SAMSUNG_MODEL_MAP: Record<string, string> = {
+  'SM-G960': 'Galaxy S9', 'SM-G965': 'Galaxy S9+',
+  'SM-G970': 'Galaxy S10e', 'SM-G973': 'Galaxy S10', 'SM-G975': 'Galaxy S10+',
+  'SM-G980': 'Galaxy S20', 'SM-G981': 'Galaxy S20',
+  'SM-G985': 'Galaxy S20+', 'SM-G986': 'Galaxy S20+',
+  'SM-G988': 'Galaxy S20 Ultra',
+  'SM-G780': 'Galaxy S20 FE',
+  'SM-G991': 'Galaxy S21', 'SM-G996': 'Galaxy S21+', 'SM-G998': 'Galaxy S21 Ultra',
+  'SM-G990': 'Galaxy S21 FE',
+  'SM-S901': 'Galaxy S22', 'SM-S906': 'Galaxy S22+', 'SM-S908': 'Galaxy S22 Ultra',
+  'SM-S911': 'Galaxy S23', 'SM-S916': 'Galaxy S23+', 'SM-S918': 'Galaxy S23 Ultra',
+  'SM-S711': 'Galaxy S23 FE',
+  'SM-S921': 'Galaxy S24', 'SM-S926': 'Galaxy S24+', 'SM-S928': 'Galaxy S24 Ultra',
+  'SM-S721': 'Galaxy S24 FE',
+  'SM-S931': 'Galaxy S25', 'SM-S936': 'Galaxy S25+', 'SM-S938': 'Galaxy S25 Ultra',
+  'SM-S941': 'Galaxy S26', 'SM-S946': 'Galaxy S26+', 'SM-S948': 'Galaxy S26 Ultra',
+  'SM-N980': 'Galaxy Note 20', 'SM-N981': 'Galaxy Note 20',
+  'SM-N985': 'Galaxy Note 20 Ultra', 'SM-N986': 'Galaxy Note 20 Ultra',
+  'SM-F926': 'Galaxy Z Fold 3',
+  'SM-F936': 'Galaxy Z Fold 4',
+  'SM-F946': 'Galaxy Z Fold 5',
+  'SM-F956': 'Galaxy Z Fold 6',
+  'SM-F711': 'Galaxy Z Flip 3',
+  'SM-F721': 'Galaxy Z Flip 4',
+  'SM-F731': 'Galaxy Z Flip 5',
+  'SM-F741': 'Galaxy Z Flip 6',
+  'SM-A055': 'Galaxy A05',
+  'SM-A057': 'Galaxy A05s',
+  'SM-A065': 'Galaxy A06',
+  'SM-A156': 'Galaxy A15',
+  'SM-A256': 'Galaxy A25',
+  'SM-A356': 'Galaxy A35',
+  'SM-A556': 'Galaxy A55',
+  'SM-A166': 'Galaxy A16',
+  'SM-A266': 'Galaxy A26',
+  'SM-A366': 'Galaxy A36',
+  'SM-A566': 'Galaxy A56',
+}
+
 interface OCRResult {
   imei: string
   serial: string
@@ -89,7 +128,6 @@ export default function UKUsedIntake() {
       setDebugText(text)
 
       if (mode === 'imei') {
-        // Just extract IMEI from *#06# screen
         const imeiMatches = text.match(/\b(\d{15})\b/g)
         const imei = imeiMatches?.[0] ?? ''
         if (imei) {
@@ -105,12 +143,20 @@ export default function UKUsedIntake() {
         return
       }
 
-      // About Phone scan
+      // IMEI
       const imeiMatch = text.match(/\b(\d{15})\b/)
-      const serialMatch = text.match(/Serial\s*Number\s*([A-Z0-9]{8,20})/i)
+
+      // Serial — handles iPhone and Samsung formats
+      const serialMatch =
+        text.match(/Serial\s*[Nn]umber[:\s]*([A-Z0-9]{8,20})/i) ??
+        text.match(/S\/N[:\s]*([A-Z0-9]{8,20})/i) ??
+        text.match(/\b(R[A-Z0-9]{14,17})\b/)
+
+      // Storage
       const storageMatch = text.match(/(\d+)\s*GB/i)
       const storage = storageMatch ? `${storageMatch[1]}GB` : ''
 
+      // Model — try readable name first
       const modelPatterns = [
         { pattern: /iPhone\s+\d+\s*(?:Pro\s*Max|Pro|Plus|mini)?/i },
         { pattern: /Samsung\s+Galaxy\s+[\w\s]+?(?=\n|Storage|IMEI|Serial|$)/i },
@@ -123,6 +169,15 @@ export default function UKUsedIntake() {
       for (const { pattern } of modelPatterns) {
         const match = text.match(pattern)
         if (match) { model = match[0].trim().replace(/\s+/g, ' '); break }
+      }
+
+      // Samsung model number fallback — SM-XXXX → readable name
+      if (!model) {
+        const modelNumMatch = text.match(/\b(SM-[A-Z]\d{3}[A-Z]?)\b/i)
+        if (modelNumMatch) {
+          const code = modelNumMatch[1].toUpperCase().slice(0, 7)
+          model = SAMSUNG_MODEL_MAP[code] ?? modelNumMatch[1]
+        }
       }
 
       const imeiValue = imeiMatch?.[1] ?? ''
@@ -174,16 +229,16 @@ export default function UKUsedIntake() {
     })
 
     if (insertError) {
-  if (insertError.code === '23505' && insertError.message.includes('imei')) {
-    setError('This IMEI already exists in inventory. Device may already be stocked.')
-  } else if (insertError.code === '23505' && insertError.message.includes('serial')) {
-    setError('This serial number already exists in inventory.')
-  } else {
-    setError(insertError.message)
-  }
-  setSaving(false)
-  return
-}
+      if (insertError.code === '23505' && insertError.message.includes('imei')) {
+        setError('This IMEI already exists in inventory. Device may already be stocked.')
+      } else if (insertError.code === '23505' && insertError.message.includes('serial')) {
+        setError('This serial number already exists in inventory.')
+      } else {
+        setError(insertError.message)
+      }
+      setSaving(false)
+      return
+    }
 
     setStep('success')
     setSaving(false)
@@ -268,7 +323,6 @@ export default function UKUsedIntake() {
               <p className="text-white font-semibold">Review Extracted Data</p>
             </div>
 
-            {/* IMEI field with scan button */}
             <div className="space-y-1.5">
               <label className="text-xs text-[#888888] uppercase tracking-wider font-medium">IMEI</label>
               <div className="flex gap-2">
@@ -278,11 +332,8 @@ export default function UKUsedIntake() {
                   placeholder="15-digit IMEI"
                   className="flex-1 bg-[#1C1C1C] border border-white/8 rounded-xl px-4 py-3 text-white text-sm font-mono placeholder-[#444444] outline-none focus:border-blue-500"
                 />
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={startIMEIScan}
-                  className="bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl px-3 flex items-center gap-1.5 text-xs font-semibold"
-                >
+                <motion.button whileTap={{ scale: 0.95 }} onClick={startIMEIScan}
+                  className="bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl px-3 flex items-center gap-1.5 text-xs font-semibold">
                   <Scan size={14} /> Scan
                 </motion.button>
               </div>
@@ -291,7 +342,6 @@ export default function UKUsedIntake() {
               )}
             </div>
 
-            {/* Serial Number */}
             <div className="space-y-1.5">
               <label className="text-xs text-[#888888] uppercase tracking-wider font-medium">Serial Number</label>
               <input
@@ -302,7 +352,6 @@ export default function UKUsedIntake() {
               />
             </div>
 
-            {/* OCR detected info */}
             {(ocrResult.model || ocrResult.storage) && (
               <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-3">
                 <p className="text-blue-300 text-xs font-semibold mb-1">Detected from scan</p>
@@ -318,7 +367,6 @@ export default function UKUsedIntake() {
               </div>
             )}
 
-            {/* Product selector — pre-searched with detected model */}
             <div className="space-y-2">
               <p className="text-xs text-[#888888] uppercase tracking-wider font-medium">Product</p>
               <ProductSelector

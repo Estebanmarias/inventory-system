@@ -34,7 +34,7 @@ export default function DashboardStats({ role, userId }: Props) {
       today.setHours(0, 0, 0, 0)
 
       const [stockRes, revenueRes, debtRes, overdueRes, transactionsRes] = await Promise.all([
-        supabase.from('devices').select('id', { count: 'exact' }).eq('status', 'IN_STOCK'),
+        supabase.from('devices').select('id', { count: 'exact' }).eq('status', 'IN_STOCK').neq('stock_type', 'TRADE_IN'),
         supabase.from('invoices').select('amount_paid').gte('created_at', today.toISOString()),
         supabase.from('reseller_pickup_items').select('amount_paid, is_paid').eq('is_paid', false),
         supabase.from('alerts').select('id', { count: 'exact' }).eq('alert_type', 'RESELLER_OVERDUE').eq('is_read', false),
@@ -43,6 +43,7 @@ export default function DashboardStats({ role, userId }: Props) {
 
       const todayRevenue = (revenueRes.data ?? []).reduce((sum, i) => sum + Number(i.amount_paid), 0)
       const resellerDebt = debtRes.count ?? 0
+      
 
       setStats({
         totalStock: stockRes.count ?? 0,
